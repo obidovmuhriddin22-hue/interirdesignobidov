@@ -1,0 +1,204 @@
+-- ============================================================
+--  Corona Light Manager v1.0
+--  3ds Max 2024 + Corona Renderer 12
+-- ============================================================
+
+global CoronaLightManager_Dialog
+global clm_lightList = #()
+
+fn CLM_GetAllCoronaLights = (
+    local lights = #()
+    for obj in objects do (
+        if (classof obj == CoronaLight) do append lights obj
+    )
+    lights
+)
+
+rollout CLM_Main "Chiroqlar Ro'yxati" width:400 height:620 (
+    label lbl_title "Corona Light Manager v1.0" align:#center
+    label lbl_sep "─────────────────────────────────" align:#center
+    listbox lb_lights "Sahnidagi chiroqlar:" items:#() height:10 width:370
+    button btn_refresh "Ro'yxatni yangilash" width:370 height:28
+    label lbl_sep2 "─────────────────────────────────" align:#center
+
+    group "Holat" (
+        button btn_on  "Yoqish"   width:175 height:28 across:2
+        button btn_off "O'chirish" width:175 height:28
+        button btn_toggle "Toggle (Yoq/O'chir)" width:370 height:28
+        button btn_all_on  "Barchasini Yoqish"   width:175 height:28 across:2
+        button btn_all_off "Barchasini O'chirish" width:175 height:28
+    )
+
+    group "Intensivlik (Multiplier)" (
+        spinner spn_intensity "Qiymat: " range:[0,10000,500] type:#float scale:10 width:260 across:2
+        button btn_set_intensity "Qo'llash" width:90 height:24
+        button btn_intensity_all "Barchasiga qo'llash" width:370 height:24
+    )
+
+    group "Chiroq Rangi" (
+        colorpicker cp_color "Rang:" color:(color 255 240 200) width:200 across:2
+        button btn_set_color "Rangni Qo'llash" width:150 height:24
+        button btn_color_all "Barchasiga Rang Qo'llash" width:370 height:24
+    )
+
+    group "Rang Harorati (Kelvin)" (
+        checkbox chk_useKelvin "Kelvin ishlatish" checked:false across:2
+        label lbl_kv_hint "(yoqilsa rang haroratidan foydalanadi)"
+        spinner spn_kelvin "Kelvin: " range:[1000,12000,4000] type:#integer scale:100 width:260 across:2
+        button btn_set_kelvin "Qo'llash" width:90 height:24
+        button btn_kelvin_all "Barchasiga qo'llash" width:370 height:24
+    )
+
+    group "Tanlash" (
+        button btn_select_scene "Sahnada Tanlash" width:175 height:28 across:2
+        button btn_select_all   "Barchasini Tanlash" width:175 height:28
+    )
+
+    label lbl_status "Tayyor." align:#center
+
+    on btn_refresh pressed do (
+        clm_lightList = CLM_GetAllCoronaLights()
+        local names = #()
+        for lt in clm_lightList do (
+            local state = if lt.enabled then "[ON] " else "[OFF]"
+            append names (state + lt.name)
+        )
+        lb_lights.items = names
+        lbl_status.text = ("Topildi: " + (clm_lightList.count as string) + " ta Corona Light")
+    )
+
+    on lb_lights selected idx do (
+        if idx > 0 and idx <= clm_lightList.count do (
+            local lt = clm_lightList[idx]
+            spn_intensity.value   = lt.intensity
+            cp_color.color        = lt.color
+            spn_kelvin.value      = lt.colorTemperature
+            chk_useKelvin.checked = lt.useColorTemperature
+            lbl_status.text = ("Tanlandi: " + lt.name)
+        )
+    )
+
+    on btn_on pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            clm_lightList[idx].enabled = true
+            btn_refresh.pressed()
+            lbl_status.text = (clm_lightList[idx].name + " - yoqildi.")
+        )
+    )
+
+    on btn_off pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            clm_lightList[idx].enabled = false
+            btn_refresh.pressed()
+            lbl_status.text = (clm_lightList[idx].name + " - o'chirildi.")
+        )
+    )
+
+    on btn_toggle pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            local lt = clm_lightList[idx]
+            lt.enabled = not lt.enabled
+            btn_refresh.pressed()
+            local st = if lt.enabled then "yoqildi" else "o'chirildi"
+            lbl_status.text = (lt.name + " - " + st + ".")
+        )
+    )
+
+    on btn_all_on pressed do (
+        for lt in clm_lightList do lt.enabled = true
+        btn_refresh.pressed()
+        lbl_status.text = "Barcha chiroqlar yoqildi."
+    )
+
+    on btn_all_off pressed do (
+        for lt in clm_lightList do lt.enabled = false
+        btn_refresh.pressed()
+        lbl_status.text = "Barcha chiroqlar o'chirildi."
+    )
+
+    on btn_set_intensity pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            clm_lightList[idx].intensity = spn_intensity.value
+            lbl_status.text = (clm_lightList[idx].name + " intensity = " + (spn_intensity.value as string))
+        )
+    )
+
+    on btn_intensity_all pressed do (
+        for lt in clm_lightList do lt.intensity = spn_intensity.value
+        lbl_status.text = ("Barcha chiroqlarga intensity = " + (spn_intensity.value as string) + " qo'llandi.")
+    )
+
+    on btn_set_color pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            clm_lightList[idx].color = cp_color.color
+            clm_lightList[idx].useColorTemperature = false
+            lbl_status.text = (clm_lightList[idx].name + " rangi o'zgartirildi.")
+        )
+    )
+
+    on btn_color_all pressed do (
+        for lt in clm_lightList do (
+            lt.color = cp_color.color
+            lt.useColorTemperature = false
+        )
+        lbl_status.text = "Barcha chiroqlarga rang qo'llandi."
+    )
+
+    on chk_useKelvin changed val do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            clm_lightList[idx].useColorTemperature = val
+        )
+    )
+
+    on btn_set_kelvin pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            clm_lightList[idx].colorTemperature    = spn_kelvin.value
+            clm_lightList[idx].useColorTemperature = true
+            chk_useKelvin.checked = true
+            lbl_status.text = (clm_lightList[idx].name + " kelvin = " + (spn_kelvin.value as string) + "K")
+        )
+    )
+
+    on btn_kelvin_all pressed do (
+        for lt in clm_lightList do (
+            lt.colorTemperature    = spn_kelvin.value
+            lt.useColorTemperature = true
+        )
+        chk_useKelvin.checked = true
+        lbl_status.text = ("Barcha chiroqlarga " + (spn_kelvin.value as string) + "K qo'llandi.")
+    )
+
+    on btn_select_scene pressed do (
+        local idx = lb_lights.selection
+        if idx > 0 and idx <= clm_lightList.count do (
+            select clm_lightList[idx]
+            lbl_status.text = (clm_lightList[idx].name + " sahnada tanlandi.")
+        )
+    )
+
+    on btn_select_all pressed do (
+        if clm_lightList.count > 0 do (
+            select clm_lightList[1]
+            for i = 2 to clm_lightList.count do selectMore clm_lightList[i]
+            lbl_status.text = (clm_lightList.count as string) + " ta chiroq tanlandi."
+        )
+    )
+
+    on CLM_Main open do (
+        btn_refresh.pressed()
+    )
+)
+
+if CoronaLightManager_Dialog != undefined do (
+    try ( destroyDialog CoronaLightManager_Dialog ) catch()
+)
+
+createDialog CLM_Main style:#(#style_titlebar, #style_border, #style_sysmenu, #style_resizing) x:100 y:100
+CoronaLightManager_Dialog = CLM_Main

@@ -1,389 +1,392 @@
 -- ============================================================
---  CORONA LIGHT MANAGER PRO v2.0
+--  CORONA LIGHT MANAGER PRO v3.0
 --  3ds Max 2024 + Corona Renderer 12
---  Har bir chiroqni alohida boshqarish imkoniyati
+--  SCROLLABLE — tepa-pastga surish imkoniyati
+--  Har bir chiroqni alohida boshqarish
 -- ============================================================
 
 macroScript CoronaLightManagerPro
     category:"Corona Tools"
-    tooltip:"Corona Light Manager Pro - Chiroqlarni boshqarish"
+    tooltip:"Corona Light Manager Pro"
     buttonText:"Light Manager"
     icon:#("Standard",24)
 (
 
 -- ============================================================
--- GLOBAL O'ZGARUVCHILAR
+-- GLOBAL
 -- ============================================================
 global CLM_Dialog = undefined
 global CLM_LightsList = #()
 global CLM_SoloedLight = undefined
 
 -- ============================================================
--- ASOSIY ROLLOUT
+-- YORDAMCHI FUNKSIYALAR (rollout lardan tashqarida)
 -- ============================================================
-rollout CLM_Rollout "Corona Light Manager Pro v2.0" width:480 height:820 (
+fn CLM_GetCoronaLights = (
+    local arr = #()
+    for obj in objects where (classof obj == CoronaLight) do append arr obj
+    arr
+)
 
-    -- ========== YUQORI QISM ==========
-    label lbl_title "CORONA LIGHT MANAGER PRO" align:#center height:20
-    label lbl_ver "v2.0 | 3ds Max 2024 | Corona 12" align:#center
-    label lbl_line1 "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" align:#center
-
-    -- ========== CHIROQLAR RO'YXATI ==========
-    group "Sahnidagi Corona Chiroqlar" (
-        multilistbox mlb_lights "Chiroqlar:" height:12 width:440
-        label lbl_count "Jami: 0 ta chiroq" align:#left
-        button btn_refresh "Yangilash" width:140 height:26 across:3
-        button btn_select_all_list "Hammasini Belgilash" width:140 height:26
-        button btn_select_none "Belgilashni Olib Tashlash" width:140 height:26
-    )
-
-    label lbl_line2 "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" align:#center
-
-    -- ========== ALOHIDA CHIROQ BOSHQARUVI ==========
-    group "Tanlangan Chiroq(lar)ni Boshqarish" (
-        -- Yoqish / O'chirish
-        label lbl_onoff "Holat:" align:#left
-        button btn_on       "YOQISH"         width:140 height:30 across:3
-        button btn_off      "O'CHIRISH"      width:140 height:30
-        button btn_toggle   "TOGGLE"         width:140 height:30
-
-        label lbl_sep_a " " align:#left
-
-        -- Solo rejim
-        label lbl_solo "Solo rejim (faqat tanlanganni ko'rsatish):" align:#left
-        button btn_solo     "SOLO ON"   width:210 height:30 across:2
-        button btn_unsolo   "SOLO OFF (barchasini qaytarish)" width:210 height:30
-
-        label lbl_sep_b " " align:#left
-
-        -- Intensivlik
-        label lbl_int "Intensivlik (Multiplier):" align:#left
-        spinner spn_intensity "Qiymati:" range:[0, 100000, 1000] type:#float scale:5 width:300 across:2
-        button btn_apply_int "Qo'llash" width:120 height:24
-
-        label lbl_sep_c " " align:#left
-
-        -- Rang
-        label lbl_clr "Chiroq rangi:" align:#left
-        colorpicker cp_color "Rang:" color:(color 255 238 200) width:180 across:2
-        button btn_apply_color "Rangni Qo'llash" width:180 height:24
-
-        label lbl_sep_d " " align:#left
-
-        -- Kelvin
-        label lbl_kelvin "Rang harorati (Kelvin):" align:#left
-        checkbox chk_kelvin "Kelvin rejimini yoqish" checked:false
-        spinner spn_kelvin "Kelvin:" range:[1000, 15000, 4500] type:#integer scale:50 width:300 across:2
-        button btn_apply_kelvin "Kelvinni Qo'llash" width:120 height:24
-
-        label lbl_sep_e " " align:#left
-
-        -- Radius / Size
-        label lbl_size "Chiroq o'lchami (Size):" align:#left
-        spinner spn_size "O'lchami:" range:[0, 5000, 50] type:#float scale:1 width:300 across:2
-        button btn_apply_size "O'lchamni Qo'llash" width:120 height:24
-
-        label lbl_sep_f " " align:#left
-
-        -- Include / Exclude
-        checkbox chk_shadows "Soyalar (Shadows)" checked:true across:2
-        button btn_apply_shadows "Qo'llash" width:120 height:24
-    )
-
-    label lbl_line3 "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" align:#center
-
-    -- ========== GLOBAL BOSHQARUV ==========
-    group "Barcha Chiroqlarga (Global)" (
-        button btn_all_on     "BARCHASINI YOQISH"     width:210 height:30 across:2
-        button btn_all_off    "BARCHASINI O'CHIRISH"  width:210 height:30
-        label lbl_g1 " "
-        label lbl_global_int "Global Multiplier:" align:#left
-        spinner spn_global_int "Qiymat:" range:[0, 100000, 1000] type:#float scale:10 width:300 across:2
-        button btn_global_int "Barchasiga Qo'llash" width:120 height:24
-        label lbl_g2 " "
-        label lbl_global_clr "Global Rang:" align:#left
-        colorpicker cp_global_color "Rang:" color:(color 255 255 255) width:180 across:2
-        button btn_global_color "Barchasiga Rang" width:180 height:24
-        label lbl_g3 " "
-        label lbl_global_kelvin "Global Kelvin:" align:#left
-        spinner spn_global_kelvin "K:" range:[1000, 15000, 5000] type:#integer scale:100 width:300 across:2
-        button btn_global_kelvin "Barchasiga Kelvin" width:120 height:24
-    )
-
-    label lbl_line4 "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" align:#center
-
-    -- ========== SAHNADA TANLASH ==========
-    group "Sahnada" (
-        button btn_scene_select "Sahnada Tanlash" width:210 height:28 across:2
-        button btn_scene_focus  "Tanlanganga Zoom" width:210 height:28
-    )
-
-    -- Status bar
-    label lbl_status "Tayyor. Ro'yxatni yangilang." align:#center
-
-    -- ============================================================
-    -- FUNKSIYALAR
-    -- ============================================================
-
-    -- Barcha Corona chiroqlarini topish
-    fn getCoronaLights = (
-        local arr = #()
-        for obj in objects where (classof obj == CoronaLight) do (
-            append arr obj
-        )
-        arr
-    )
-
-    -- Tanlangan indekslar
-    fn getSelectedLights = (
-        local sel = mlb_lights.selection
-        local result = #()
-        for i in sel where (i > 0 and i <= CLM_LightsList.count) do (
+fn CLM_GetSelectedFromList = (
+    local result = #()
+    try (
+        local sel = CLM_Dialog.rol_lights.mlb_lights.selection
+        for i in sel where (i > 0 and i <= CLM_LightsList.count) do
             append result CLM_LightsList[i]
-        )
-        result
+    ) catch()
+    result
+)
+
+fn CLM_RefreshList = (
+    CLM_LightsList = CLM_GetCoronaLights()
+    local names = #()
+    for lt in CLM_LightsList do (
+        local state = if lt.enabled then " [ON]  " else " [OFF] "
+        local info = state + lt.name + "  |  Int: " + (lt.intensity as string)
+        append names info
+    )
+    try (
+        CLM_Dialog.rol_lights.mlb_lights.items = names
+        CLM_Dialog.rol_lights.lbl_count.text = ("Jami: " + (CLM_LightsList.count as string) + " ta chiroq")
+    ) catch()
+)
+
+-- ============================================================
+-- 1-ROLLOUT: CHIROQLAR RO'YXATI
+-- ============================================================
+rollout rol_lights "Chiroqlar Ro'yxati" (
+
+    multilistbox mlb_lights "Sahnadagi Corona chiroqlar:" height:8 width:430
+    label lbl_count "Jami: 0 ta chiroq" align:#left
+
+    button btn_refresh    "Yangilash"       width:135 height:26 across:3
+    button btn_sel_all    "Barchasini Belgilash"  width:135 height:26
+    button btn_sel_none   "Belgilashni Olib Tashlash" width:135 height:26
+
+    on btn_refresh pressed do CLM_RefreshList()
+
+    on btn_sel_all pressed do (
+        mlb_lights.selection = #{1..CLM_LightsList.count}
     )
 
-    -- Ro'yxatni yangilash
-    fn refreshList = (
-        CLM_LightsList = getCoronaLights()
-        local names = #()
-        for lt in CLM_LightsList do (
-            local state = if lt.enabled then "[ON]  " else "[OFF] "
-            local info = state + lt.name + "  |  Int:" + (lt.intensity as string)
-            append names info
-        )
-        mlb_lights.items = names
-        lbl_count.text = ("Jami: " + (CLM_LightsList.count as string) + " ta chiroq")
-    )
-
-    -- Bitta chiroq parametrlarini ko'rsatish
-    fn showLightParams lt = (
-        spn_intensity.value = lt.intensity
-        cp_color.color = lt.color
-        spn_kelvin.value = lt.colorTemperature
-        chk_kelvin.checked = lt.useColorTemperature
-        chk_shadows.checked = lt.castShadows
-        lbl_status.text = ("Tanlandi: " + lt.name)
-    )
-
-    -- ============================================================
-    -- EVENTLAR
-    -- ============================================================
-
-    -- OYNA OCHILGANDA
-    on CLM_Rollout open do (
-        refreshList()
-    )
-
-    -- YANGILASH
-    on btn_refresh pressed do (
-        refreshList()
-        lbl_status.text = "Ro'yxat yangilandi."
-    )
-
-    -- RO'YXATDAN TANLASH
-    on mlb_lights selectionEnd do (
-        local sel = getSelectedLights()
-        if sel.count == 1 do showLightParams sel[1]
-        if sel.count > 1 do (
-            lbl_status.text = (sel.count as string) + " ta chiroq tanlandi."
-        )
-    )
-
-    -- HAMMASINI BELGILASH
-    on btn_select_all_list pressed do (
-        local allIdx = #{1..CLM_LightsList.count}
-        mlb_lights.selection = allIdx
-        lbl_status.text = "Barcha chiroqlar belgilandi."
-    )
-
-    -- BELGILASHNI OLIB TASHLASH
-    on btn_select_none pressed do (
+    on btn_sel_none pressed do (
         mlb_lights.selection = #{}
-        lbl_status.text = "Belgilash olib tashlandi."
     )
 
-    -- ======= YOQISH / O'CHIRISH =======
+    on mlb_lights selectionEnd do (
+        local sel = CLM_GetSelectedFromList()
+        if sel.count == 1 do (
+            local lt = sel[1]
+            try (
+                CLM_Dialog.rol_intensity.spn_intensity.value = lt.intensity
+                CLM_Dialog.rol_color.cp_color.color = lt.color
+                CLM_Dialog.rol_kelvin.spn_kelvin.value = lt.colorTemperature
+                CLM_Dialog.rol_kelvin.chk_kelvin.checked = lt.useColorTemperature
+                CLM_Dialog.rol_extra.chk_shadows.checked = lt.castShadows
+            ) catch()
+        )
+    )
+
+    on rol_lights open do CLM_RefreshList()
+)
+
+-- ============================================================
+-- 2-ROLLOUT: YOQISH / O'CHIRISH
+-- ============================================================
+rollout rol_onoff "Holat (Yoqish / O'chirish)" (
+
+    button btn_on      "YOQISH"     width:135 height:30 across:3
+    button btn_off     "O'CHIRISH"  width:135 height:30
+    button btn_toggle  "TOGGLE"     width:135 height:30
+
+    button btn_all_on  "BARCHASINI YOQISH"    width:210 height:28 across:2
+    button btn_all_off "BARCHASINI O'CHIRISH"  width:210 height:28
 
     on btn_on pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do lt.enabled = true
-        refreshList()
-        lbl_status.text = (sel.count as string) + " ta chiroq YOQILDI."
+        for lt in (CLM_GetSelectedFromList()) do lt.enabled = true
+        CLM_RefreshList()
     )
 
     on btn_off pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do lt.enabled = false
-        refreshList()
-        lbl_status.text = (sel.count as string) + " ta chiroq O'CHIRILDI."
+        for lt in (CLM_GetSelectedFromList()) do lt.enabled = false
+        CLM_RefreshList()
     )
 
     on btn_toggle pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do lt.enabled = not lt.enabled
-        refreshList()
-        lbl_status.text = (sel.count as string) + " ta chiroq TOGGLE qilindi."
+        for lt in (CLM_GetSelectedFromList()) do lt.enabled = not lt.enabled
+        CLM_RefreshList()
     )
-
-    -- ======= SOLO REJIM =======
-
-    on btn_solo pressed do (
-        local sel = getSelectedLights()
-        if sel.count > 0 do (
-            -- Barchasini o'chirish, faqat tanlanganlarni yoqish
-            for lt in CLM_LightsList do lt.enabled = false
-            for lt in sel do lt.enabled = true
-            CLM_SoloedLight = sel
-            refreshList()
-            lbl_status.text = "SOLO rejim: faqat tanlangan chiroqlar yonmoqda."
-        )
-    )
-
-    on btn_unsolo pressed do (
-        -- Barchasini qaytarish (yoqish)
-        for lt in CLM_LightsList do lt.enabled = true
-        CLM_SoloedLight = undefined
-        refreshList()
-        lbl_status.text = "SOLO OFF: barcha chiroqlar yoqildi."
-    )
-
-    -- ======= INTENSIVLIK =======
-
-    on btn_apply_int pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do lt.intensity = spn_intensity.value
-        refreshList()
-        lbl_status.text = (sel.count as string) + " ta chiroqqa intensity = " + (spn_intensity.value as string) + " qo'llandi."
-    )
-
-    -- ======= RANG =======
-
-    on btn_apply_color pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do (
-            lt.color = cp_color.color
-            lt.useColorTemperature = false
-        )
-        refreshList()
-        lbl_status.text = (sel.count as string) + " ta chiroqqa rang qo'llandi."
-    )
-
-    -- ======= KELVIN =======
-
-    on chk_kelvin changed state do (
-        local sel = getSelectedLights()
-        for lt in sel do lt.useColorTemperature = state
-    )
-
-    on btn_apply_kelvin pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do (
-            lt.colorTemperature = spn_kelvin.value
-            lt.useColorTemperature = true
-        )
-        chk_kelvin.checked = true
-        refreshList()
-        lbl_status.text = (sel.count as string) + " ta chiroqqa " + (spn_kelvin.value as string) + "K qo'llandi."
-    )
-
-    -- ======= SIZE =======
-
-    on btn_apply_size pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do (
-            try (lt.size = spn_size.value) catch()
-            try (lt.width = spn_size.value; lt.length = spn_size.value) catch()
-        )
-        lbl_status.text = (sel.count as string) + " ta chiroq o'lchami o'zgartirildi."
-    )
-
-    -- ======= SHADOWS =======
-
-    on btn_apply_shadows pressed do (
-        local sel = getSelectedLights()
-        for lt in sel do lt.castShadows = chk_shadows.checked
-        lbl_status.text = (sel.count as string) + " ta chiroqqa shadows = " + (chk_shadows.checked as string)
-    )
-
-    -- ======= GLOBAL =======
 
     on btn_all_on pressed do (
         for lt in CLM_LightsList do lt.enabled = true
-        refreshList()
-        lbl_status.text = "BARCHA chiroqlar YOQILDI."
+        CLM_RefreshList()
     )
 
     on btn_all_off pressed do (
         for lt in CLM_LightsList do lt.enabled = false
-        refreshList()
-        lbl_status.text = "BARCHA chiroqlar O'CHIRILDI."
+        CLM_RefreshList()
+    )
+)
+
+-- ============================================================
+-- 3-ROLLOUT: SOLO REJIM
+-- ============================================================
+rollout rol_solo "Solo Rejim" (
+
+    label lbl_info "Faqat tanlangan chiroq(lar)ni yoqib qolganini o'chiradi" align:#left
+    button btn_solo   "SOLO ON"   width:210 height:30 across:2
+    button btn_unsolo "SOLO OFF (barchasini qaytarish)" width:210 height:30
+
+    on btn_solo pressed do (
+        local sel = CLM_GetSelectedFromList()
+        if sel.count > 0 do (
+            for lt in CLM_LightsList do lt.enabled = false
+            for lt in sel do lt.enabled = true
+            CLM_SoloedLight = sel
+            CLM_RefreshList()
+        )
     )
 
-    on btn_global_int pressed do (
-        for lt in CLM_LightsList do lt.intensity = spn_global_int.value
-        refreshList()
-        lbl_status.text = "Barcha chiroqlarga intensity = " + (spn_global_int.value as string)
+    on btn_unsolo pressed do (
+        for lt in CLM_LightsList do lt.enabled = true
+        CLM_SoloedLight = undefined
+        CLM_RefreshList()
+    )
+)
+
+-- ============================================================
+-- 4-ROLLOUT: INTENSIVLIK
+-- ============================================================
+rollout rol_intensity "Intensivlik (Multiplier)" (
+
+    spinner spn_intensity "Qiymati:" range:[0, 100000, 1000] type:#float scale:5 width:320
+    button btn_apply   "Tanlanganlarga Qo'llash"  width:210 height:28 across:2
+    button btn_apply_all "BARCHASIGA Qo'llash"    width:210 height:28
+
+    -- Tezkor tugmalar
+    label lbl_quick "Tezkor qiymatlar:" align:#left
+    button btn_q1 "100"  width:65 height:24 across:6
+    button btn_q2 "300"  width:65 height:24
+    button btn_q3 "500"  width:65 height:24
+    button btn_q4 "1000" width:65 height:24
+    button btn_q5 "2000" width:65 height:24
+    button btn_q6 "5000" width:65 height:24
+
+    on btn_apply pressed do (
+        for lt in (CLM_GetSelectedFromList()) do lt.intensity = spn_intensity.value
+        CLM_RefreshList()
     )
 
-    on btn_global_color pressed do (
-        for lt in CLM_LightsList do (
-            lt.color = cp_global_color.color
+    on btn_apply_all pressed do (
+        for lt in CLM_LightsList do lt.intensity = spn_intensity.value
+        CLM_RefreshList()
+    )
+
+    on btn_q1 pressed do (spn_intensity.value = 100;  btn_apply.pressed())
+    on btn_q2 pressed do (spn_intensity.value = 300;  btn_apply.pressed())
+    on btn_q3 pressed do (spn_intensity.value = 500;  btn_apply.pressed())
+    on btn_q4 pressed do (spn_intensity.value = 1000; btn_apply.pressed())
+    on btn_q5 pressed do (spn_intensity.value = 2000; btn_apply.pressed())
+    on btn_q6 pressed do (spn_intensity.value = 5000; btn_apply.pressed())
+)
+
+-- ============================================================
+-- 5-ROLLOUT: RANG
+-- ============================================================
+rollout rol_color "Chiroq Rangi" (
+
+    colorpicker cp_color "Rang tanlash:" color:(color 255 238 200) width:250
+    button btn_apply   "Tanlanganlarga Qo'llash" width:210 height:28 across:2
+    button btn_apply_all "BARCHASIGA Qo'llash"   width:210 height:28
+
+    -- Tezkor ranglar
+    label lbl_quick "Tezkor ranglar:" align:#left
+    button btn_warm   "Iliq oq"    width:100 height:24 across:4
+    button btn_cold   "Sovuq oq"   width:100 height:24
+    button btn_yellow "Sariq"      width:100 height:24
+    button btn_day    "Kunduzi"    width:100 height:24
+
+    on btn_apply pressed do (
+        for lt in (CLM_GetSelectedFromList()) do (
+            lt.color = cp_color.color
             lt.useColorTemperature = false
         )
-        refreshList()
-        lbl_status.text = "Barcha chiroqlarga rang qo'llandi."
+        CLM_RefreshList()
     )
 
-    on btn_global_kelvin pressed do (
+    on btn_apply_all pressed do (
         for lt in CLM_LightsList do (
-            lt.colorTemperature = spn_global_kelvin.value
+            lt.color = cp_color.color
+            lt.useColorTemperature = false
+        )
+        CLM_RefreshList()
+    )
+
+    on btn_warm   pressed do (cp_color.color = color 255 238 200; btn_apply.pressed())
+    on btn_cold   pressed do (cp_color.color = color 200 220 255; btn_apply.pressed())
+    on btn_yellow pressed do (cp_color.color = color 255 200 80;  btn_apply.pressed())
+    on btn_day    pressed do (cp_color.color = color 255 255 250; btn_apply.pressed())
+)
+
+-- ============================================================
+-- 6-ROLLOUT: KELVIN
+-- ============================================================
+rollout rol_kelvin "Rang Harorati (Kelvin)" (
+
+    checkbox chk_kelvin "Kelvin rejimini yoqish" checked:false
+    spinner spn_kelvin "Kelvin:" range:[1000, 15000, 4500] type:#integer scale:50 width:320
+    button btn_apply   "Tanlanganlarga Qo'llash" width:210 height:28 across:2
+    button btn_apply_all "BARCHASIGA Qo'llash"   width:210 height:28
+
+    -- Tezkor kelvin
+    label lbl_quick "Tezkor:" align:#left
+    button btn_k1 "2700K Sham"   width:105 height:24 across:4
+    button btn_k2 "4000K Neytr"  width:105 height:24
+    button btn_k3 "5500K Kun"    width:105 height:24
+    button btn_k4 "6500K Bulut"  width:105 height:24
+
+    on btn_apply pressed do (
+        for lt in (CLM_GetSelectedFromList()) do (
+            lt.colorTemperature = spn_kelvin.value
             lt.useColorTemperature = true
         )
-        refreshList()
-        lbl_status.text = "Barcha chiroqlarga " + (spn_global_kelvin.value as string) + "K qo'llandi."
+        chk_kelvin.checked = true
+        CLM_RefreshList()
     )
 
-    -- ======= SAHNADA TANLASH =======
+    on btn_apply_all pressed do (
+        for lt in CLM_LightsList do (
+            lt.colorTemperature = spn_kelvin.value
+            lt.useColorTemperature = true
+        )
+        chk_kelvin.checked = true
+        CLM_RefreshList()
+    )
 
-    on btn_scene_select pressed do (
-        local sel = getSelectedLights()
+    on chk_kelvin changed state do (
+        for lt in (CLM_GetSelectedFromList()) do lt.useColorTemperature = state
+    )
+
+    on btn_k1 pressed do (spn_kelvin.value = 2700; btn_apply.pressed())
+    on btn_k2 pressed do (spn_kelvin.value = 4000; btn_apply.pressed())
+    on btn_k3 pressed do (spn_kelvin.value = 5500; btn_apply.pressed())
+    on btn_k4 pressed do (spn_kelvin.value = 6500; btn_apply.pressed())
+)
+
+-- ============================================================
+-- 7-ROLLOUT: O'LCHAM VA QO'SHIMCHA
+-- ============================================================
+rollout rol_extra "O'lcham va Qo'shimcha" (
+
+    -- Size
+    label lbl_size "Chiroq o'lchami (Size/Radius):" align:#left
+    spinner spn_size "O'lcham:" range:[0, 5000, 50] type:#float scale:1 width:320
+    button btn_apply_size "Tanlanganlarga Qo'llash" width:210 height:28 across:2
+    button btn_size_all   "BARCHASIGA Qo'llash"     width:210 height:28
+
+    label lbl_sep " " align:#left
+
+    -- Shadows
+    checkbox chk_shadows "Soyalar (Cast Shadows)" checked:true
+    button btn_apply_shd "Soyalarni Qo'llash" width:210 height:28
+
+    label lbl_sep2 " " align:#left
+
+    -- Directionality
+    label lbl_dir "Yo'nalish kuchi (Directionality):" align:#left
+    spinner spn_dir "Qiymat:" range:[0, 1.0, 0.0] type:#float scale:0.05 width:320
+    button btn_apply_dir "Qo'llash" width:210 height:28
+
+    on btn_apply_size pressed do (
+        for lt in (CLM_GetSelectedFromList()) do (
+            try (lt.size = spn_size.value) catch()
+            try (lt.width = spn_size.value; lt.length = spn_size.value) catch()
+        )
+    )
+
+    on btn_size_all pressed do (
+        for lt in CLM_LightsList do (
+            try (lt.size = spn_size.value) catch()
+            try (lt.width = spn_size.value; lt.length = spn_size.value) catch()
+        )
+    )
+
+    on btn_apply_shd pressed do (
+        for lt in (CLM_GetSelectedFromList()) do lt.castShadows = chk_shadows.checked
+    )
+
+    on btn_apply_dir pressed do (
+        for lt in (CLM_GetSelectedFromList()) do (
+            try (lt.directionality = spn_dir.value) catch()
+        )
+    )
+)
+
+-- ============================================================
+-- 8-ROLLOUT: SAHNADA TANLASH
+-- ============================================================
+rollout rol_scene "Sahnada Tanlash" (
+
+    button btn_select  "Sahnada Tanlash"   width:140 height:28 across:3
+    button btn_focus   "Zoom to Selected"  width:140 height:28
+    button btn_hide    "Boshqalarini Yashirish" width:140 height:28
+
+    on btn_select pressed do (
+        local sel = CLM_GetSelectedFromList()
         if sel.count > 0 do (
             select sel[1]
             for i = 2 to sel.count do selectMore sel[i]
-            lbl_status.text = (sel.count as string) + " ta chiroq sahnada tanlandi."
         )
     )
 
-    on btn_scene_focus pressed do (
-        local sel = getSelectedLights()
+    on btn_focus pressed do (
+        local sel = CLM_GetSelectedFromList()
         if sel.count > 0 do (
             select sel[1]
             for i = 2 to sel.count do selectMore sel[i]
             max zoomext sel
-            lbl_status.text = "Tanlangan chiroqqa zoom qilindi."
         )
     )
 
-    -- OYNA YOPILGANDA
-    on CLM_Rollout close do (
-        CLM_Dialog = undefined
+    on btn_hide pressed do (
+        local sel = CLM_GetSelectedFromList()
+        for lt in CLM_LightsList do lt.isHidden = true
+        for lt in sel do lt.isHidden = false
     )
-
-) -- rollout end
+)
 
 -- ============================================================
--- DIALOG YARATISH
+-- ASOSIY DIALOG — SCROLLABLE SUBROLLOUT CONTAINER
+-- ============================================================
+rollout rol_main "Corona Light Manager Pro v3.0" width:470 height:600 (
+
+    subrollout sub_container "Boshqaruv Paneli" \
+        width:458 height:580 pos:[4,4]
+)
+
+-- ============================================================
+-- OYNA OCHISH
 -- ============================================================
 if CLM_Dialog != undefined do (
     try (destroyDialog CLM_Dialog) catch()
     CLM_Dialog = undefined
 )
 
-createDialog CLM_Rollout \
+createDialog rol_main \
     style:#(#style_titlebar, #style_border, #style_sysmenu, #style_resizing) \
-    pos:[150,80]
-CLM_Dialog = CLM_Rollout
+    pos:[100,50]
+
+CLM_Dialog = rol_main
+
+-- SubRollout larga barcha bo'limlarni qo'shish
+addSubRollout rol_main.sub_container rol_lights
+addSubRollout rol_main.sub_container rol_onoff
+addSubRollout rol_main.sub_container rol_solo
+addSubRollout rol_main.sub_container rol_intensity
+addSubRollout rol_main.sub_container rol_color
+addSubRollout rol_main.sub_container rol_kelvin
+addSubRollout rol_main.sub_container rol_extra
+addSubRollout rol_main.sub_container rol_scene
 
 ) -- macroScript end
